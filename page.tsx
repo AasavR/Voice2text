@@ -1,0 +1,1 @@
+// Frontend logic placeholder for React/Next.js
