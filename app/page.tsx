@@ -1,5 +1,3 @@
-'use client'
-
 import React, { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import LanguageSelector from '../components/LanguageSelector'
