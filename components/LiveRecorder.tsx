@@ -1,87 +1,78 @@
 'use client'
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 
 interface LiveRecorderProps {
-  onTranscribe: (file: File) => void
-  loading: boolean
+  language: string
+  onTranscribe: (text: string) => void
 }
 
-const LiveRecorder: React.FC<LiveRecorderProps> = ({ onTranscribe, loading }) => {
-  const [recording, setRecording] = useState(false)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any
+    SpeechRecognition: any
+  }
+}
+
+const LiveRecorder: React.FC<LiveRecorderProps> = ({ language, onTranscribe }) => {
+  const [isRecording, setIsRecording] = useState(false)
+  const recognitionRef = useRef<any>(null)
 
   useEffect(() => {
-    return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        try {
-          mediaRecorderRef.current.stop()
-        } catch (error) {
-          console.error('Error stopping media recorder on unmount:', error)
-        }
-      }
+    if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      console.error('Speech Recognition API not supported in this browser.')
+      return
     }
-  }, [])
 
-  const startRecording = async () => {
-    if (recording) return
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      mediaRecorderRef.current = new MediaRecorder(stream)
-      audioChunksRef.current = []
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition
+    const recognition = new SpeechRecognition()
+    recognition.lang = language
+    recognition.interimResults = true
+    recognition.continuous = true
 
-      mediaRecorderRef.current.addEventListener('dataavailable', (event) => {
-        audioChunksRef.current.push(event.data)
-      })
+    recognition.onresult = (event: any) => {
+      let transcript = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript
+      }
+      onTranscribe(transcript)
+    }
 
-      mediaRecorderRef.current.addEventListener('stop', () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-        const file = new File([audioBlob], 'recording.webm', { type: 'audio/webm' })
-        onTranscribe(file)
-      })
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error', event)
+    }
 
-      mediaRecorderRef.current.start()
-      setRecording(true)
-    } catch (error) {
-      alert('Microphone access denied or not available.')
+    recognitionRef.current = recognition
+
+    return () => {
+      recognition.stop()
+      recognitionRef.current = null
+    }
+  }, [language, onTranscribe])
+
+  const startRecording = () => {
+    if (recognitionRef.current && !isRecording) {
+      recognitionRef.current.start()
+      setIsRecording(true)
     }
   }
 
   const stopRecording = () => {
-    if (!recording || !mediaRecorderRef.current) return
-    try {
-      mediaRecorderRef.current.stop()
-    } catch (error) {
-      console.error('Error stopping media recorder:', error)
+    if (recognitionRef.current && isRecording) {
+      recognitionRef.current.stop()
+      setIsRecording(false)
     }
-    setRecording(false)
   }
 
   return (
-    <div className="mb-6 p-6 border border-gray-300 dark:border-gray-700 rounded-lg shadow-md bg-white dark:bg-gray-800 transition-colors duration-300">
-      <label className="block mb-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
-        Live Audio Recording
-      </label>
-      <div className="inline-block">
-        {!recording ? (
-          <button
-            onClick={startRecording}
-            disabled={loading}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg shadow hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition"
-          >
-            Start Recording
-          </button>
-        ) : (
-          <button
-            onClick={stopRecording}
-            disabled={loading}
-            className="px-6 py-3 bg-red-600 text-white rounded-lg shadow hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition"
-          >
-            Stop Recording
-          </button>
-        )}
-      </div>
+    <div>
+      <button
+        onClick={isRecording ? stopRecording : startRecording}
+        className="px-4 py-2 bg-blue-600 text-white rounded"
+      >
+        {isRecording ? 'Stop Recording' : 'Start Recording'}
+      </button>
     </div>
   )
 }
