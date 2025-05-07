@@ -28,7 +28,7 @@ export default function HomePage() {
   useEffect(() => {
     async function fetchTemplates() {
       try {
-        const response = await axios.get('/templates/list')
+        const response = await axios.get('https://voice2text-backend.onrender.com/templates/list')
         console.log('Templates fetched:', response.data.templates)
         setTemplates(response.data.templates)
       } catch (error) {
