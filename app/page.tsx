@@ -7,17 +7,10 @@ import BlockSelector from '../components/BlockSelector'
 import LiveRecorder from '../components/LiveRecorder'
 import axios from 'axios'
 
-interface Block {
-  id: string
-  name: string
-  description?: string
-}
-
 interface Template {
   id: string
   filename: string
-  template_name: string
-  blocks: Block[]
+  blocks: string[]
 }
 
 export default function HomePage() {
@@ -27,6 +20,7 @@ export default function HomePage() {
   const [selectedBlock, setSelectedBlock] = useState<string>('')
   const [transcribedText, setTranscribedText] = useState<string>('')
 
+  // Fetch templates from backend on mount
   useEffect(() => {
     async function fetchTemplates() {
       try {
@@ -39,25 +33,29 @@ export default function HomePage() {
     fetchTemplates()
   }, [])
 
+  // Get the selected template object based on selectedTemplateFilename
   const selectedTemplate = templates.find(t => t.filename === selectedTemplateFilename) || null
 
+  // Reset selected block when template changes
   useEffect(() => {
     if (selectedTemplate && selectedTemplate.blocks.length > 0) {
-      setSelectedBlock(selectedTemplate.blocks[0].id)
+      setSelectedBlock(selectedTemplate.blocks[0].name)
     } else {
       setSelectedBlock('')
     }
   }, [selectedTemplate])
 
+  // Handle new transcription text
   function handleTranscription(text: string) {
     setTranscribedText(text)
   }
 
+  // Generate the full document text with the transcribed text populated in the selected block
   function generateDocument() {
     if (!selectedTemplate) return ''
     let doc = `Template: ${selectedTemplate.template_name}\n\n`
     selectedTemplate.blocks.forEach((block) => {
-      if (block.id === selectedBlock) {
+      if (block.name === selectedBlock) {
         doc += `${block.name}:\n${transcribedText}\n\n`
       } else {
         doc += `${block.name}:\n\n`
@@ -66,6 +64,7 @@ export default function HomePage() {
     return doc
   }
 
+  // Download the generated document as a text file
   function downloadDocument() {
     const doc = generateDocument()
     const blob = new Blob([doc], { type: 'text/plain' })
