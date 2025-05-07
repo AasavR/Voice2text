@@ -7,16 +7,10 @@ import BlockSelector from '../components/BlockSelector'
 import LiveRecorder from '../components/LiveRecorder'
 import axios from 'axios'
 
-interface Block {
-  id: string
-  name: string
-  description?: string
-}
-
 interface Template {
+  id: string
   filename: string
-  template_name: string
-  blocks: Block[]
+  blocks: string[]
 }
 
 export default function HomePage() {
@@ -45,16 +39,15 @@ export default function HomePage() {
   // Reset selected block when template changes
   useEffect(() => {
     if (selectedTemplate && selectedTemplate.blocks.length > 0) {
-      setSelectedBlock(selectedTemplate.blocks[0].id)
+      setSelectedBlock(selectedTemplate.blocks[0].name)
     } else {
       setSelectedBlock('')
     }
   }, [selectedTemplate])
 
   // Handle new transcription text
-  function handleTranscription(file: File) {
-    // Placeholder: Implement transcription processing here
-    setTranscribedText('') // Clear or update with actual transcription result
+  function handleTranscription(text: string) {
+    setTranscribedText(text)
   }
 
   // Generate the full document text with the transcribed text populated in the selected block
@@ -62,7 +55,7 @@ export default function HomePage() {
     if (!selectedTemplate) return ''
     let doc = `Template: ${selectedTemplate.template_name}\n\n`
     selectedTemplate.blocks.forEach((block) => {
-      if (block.id === selectedBlock) {
+      if (block.name === selectedBlock) {
         doc += `${block.name}:\n${transcribedText}\n\n`
       } else {
         doc += `${block.name}:\n\n`
@@ -112,3 +105,4 @@ export default function HomePage() {
       </button>
     </div>
   )
+}
