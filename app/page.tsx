@@ -7,17 +7,22 @@ import BlockSelector from '../components/BlockSelector'
 import LiveRecorder from '../components/LiveRecorder'
 import axios from 'axios'
 
-interface Template {
+interface Block {
   id: string
+  name: string
+}
+
+interface Template {
+  filename: string
   template_name: string
-  blocks: string[]
+  blocks: Block[]
 }
 
 export default function HomePage() {
   const [language, setLanguage] = useState('auto')
   const [templates, setTemplates] = useState<Template[]>([])
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
-  const [selectedBlock, setSelectedBlock] = useState<string | null>(null)
+  const [selectedTemplateFilename, setSelectedTemplateFilename] = useState<string>('')
+  const [selectedBlock, setSelectedBlock] = useState<string>('')
   const [transcribedText, setTranscribedText] = useState<string>('')
 
   // Fetch templates from backend on mount
@@ -33,12 +38,15 @@ export default function HomePage() {
     fetchTemplates()
   }, [])
 
+  // Get the selected template object based on selectedTemplateFilename
+  const selectedTemplate = templates.find(t => t.filename === selectedTemplateFilename) || null
+
   // Reset selected block when template changes
   useEffect(() => {
     if (selectedTemplate && selectedTemplate.blocks.length > 0) {
-      setSelectedBlock(selectedTemplate.blocks[0])
+      setSelectedBlock(selectedTemplate.blocks[0].name)
     } else {
-      setSelectedBlock(null)
+      setSelectedBlock('')
     }
   }, [selectedTemplate])
 
@@ -52,10 +60,10 @@ export default function HomePage() {
     if (!selectedTemplate) return ''
     let doc = `Template: ${selectedTemplate.template_name}\n\n`
     selectedTemplate.blocks.forEach((block) => {
-      if (block === selectedBlock) {
-        doc += `${block}:\n${transcribedText}\n\n`
+      if (block.name === selectedBlock) {
+        doc += `${block.name}:\n${transcribedText}\n\n`
       } else {
-        doc += `${block}:\n\n`
+        doc += `${block.name}:\n\n`
       }
     })
     return doc
@@ -79,8 +87,8 @@ export default function HomePage() {
       <LanguageSelector language={language} setLanguage={setLanguage} />
       <TemplateSelector
         templates={templates}
-        selectedTemplate={selectedTemplate}
-        setSelectedTemplate={setSelectedTemplate}
+        selectedTemplate={selectedTemplateFilename}
+        setSelectedTemplate={setSelectedTemplateFilename}
       />
       {selectedTemplate && (
         <BlockSelector
