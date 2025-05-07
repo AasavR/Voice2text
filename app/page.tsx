@@ -13,7 +13,6 @@ interface Block {
 }
 
 interface Template {
-  id: string
   filename: string
   template_name: string
   blocks: Block[]
@@ -30,6 +29,7 @@ export default function HomePage() {
     async function fetchTemplates() {
       try {
         const response = await axios.get('/templates/list')
+        console.log('Templates fetched:', response.data.templates)
         setTemplates(response.data.templates)
       } catch (error) {
         console.error('Failed to fetch templates:', error)
