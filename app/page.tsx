@@ -30,9 +30,7 @@ export default function Dashboard() {
   const fetchTemplates = async () => {
     try {
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
-      const res = await axios.get(`https://your-backend-url.onrender.com/templates/list
-
-/templates/list`)
+      const res = await axios.get(`https://voice2text-backend.onrender.com/templates/list`)
       setTemplates(res.data.templates || [])
     } catch (error) {
       console.error('Error fetching templates', error)
