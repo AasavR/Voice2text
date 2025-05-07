@@ -9,7 +9,7 @@ import axios from 'axios'
 
 interface Template {
   id: string
-  filename: string
+  template_name: string
   blocks: string[]
 }
 
@@ -50,7 +50,7 @@ export default function HomePage() {
   // Generate the full document text with the transcribed text populated in the selected block
   function generateDocument() {
     if (!selectedTemplate) return ''
-    let doc = `Template: ${selectedTemplate.filename}\n\n`
+    let doc = `Template: ${selectedTemplate.template_name}\n\n`
     selectedTemplate.blocks.forEach((block) => {
       if (block === selectedBlock) {
         doc += `${block}:\n${transcribedText}\n\n`
@@ -68,7 +68,7 @@ export default function HomePage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${selectedTemplate?.filename || 'document'}.txt`
+    a.download = `${selectedTemplate?.template_name || 'document'}.txt`
     a.click()
     URL.revokeObjectURL(url)
   }
