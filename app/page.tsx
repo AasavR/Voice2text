@@ -10,6 +10,7 @@ import axios from 'axios'
 interface Block {
   id: string
   name: string
+  description?: string
 }
 
 interface Template {
@@ -44,15 +45,16 @@ export default function HomePage() {
   // Reset selected block when template changes
   useEffect(() => {
     if (selectedTemplate && selectedTemplate.blocks.length > 0) {
-      setSelectedBlock(selectedTemplate.blocks[0].name)
+      setSelectedBlock(selectedTemplate.blocks[0].id)
     } else {
       setSelectedBlock('')
     }
   }, [selectedTemplate])
 
   // Handle new transcription text
-  function handleTranscription(text: string) {
-    setTranscribedText(text)
+  function handleTranscription(file: File) {
+    // Placeholder: Implement transcription processing here
+    setTranscribedText('') // Clear or update with actual transcription result
   }
 
   // Generate the full document text with the transcribed text populated in the selected block
@@ -60,7 +62,7 @@ export default function HomePage() {
     if (!selectedTemplate) return ''
     let doc = `Template: ${selectedTemplate.template_name}\n\n`
     selectedTemplate.blocks.forEach((block) => {
-      if (block.name === selectedBlock) {
+      if (block.id === selectedBlock) {
         doc += `${block.name}:\n${transcribedText}\n\n`
       } else {
         doc += `${block.name}:\n\n`
@@ -92,7 +94,6 @@ export default function HomePage() {
       />
       {selectedTemplate && (
         <BlockSelector
-          blocks={selectedTemplate.blocks}
           selectedBlock={selectedBlock}
           setSelectedBlock={setSelectedBlock}
         />
@@ -111,4 +112,3 @@ export default function HomePage() {
       </button>
     </div>
   )
-}
