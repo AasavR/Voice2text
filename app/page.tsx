@@ -1,211 +1,106 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
-import axios from 'axios'
+import React, { useState, useEffect } from 'react'
 import LanguageSelector from '../components/LanguageSelector'
 import TemplateSelector from '../components/TemplateSelector'
-import { getToken } from '../lib/api'
-
-interface Block {
-  id: string
-  name: string
-}
+import BlockSelector from '../components/BlockSelector'
+import LiveRecorder from '../components/LiveRecorder'
+import axios from 'axios'
 
 interface Template {
+  id: string
   filename: string
-  blocks: Block[]
+  blocks: string[]
 }
 
-export default function Dashboard() {
+export default function HomePage() {
   const [language, setLanguage] = useState('auto')
   const [templates, setTemplates] = useState<Template[]>([])
-  const [selectedTemplate, setSelectedTemplate] = useState('')
-  const [blocks, setBlocks] = useState<Block[]>([])
-  const [blockTexts, setBlockTexts] = useState<{ [key: string]: string }>({})
-  const [loading, setLoading] = useState(false)
-  const [recordingBlock, setRecordingBlock] = useState<string | null>(null)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const audioChunksRef = useRef<Blob[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
+  const [selectedBlock, setSelectedBlock] = useState<string | null>(null)
+  const [transcribedText, setTranscribedText] = useState<string>('')
 
-  const fetchTemplates = async () => {
-    try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
-      const res = await axios.get(`https://voice2text-backend.onrender.com/templates/list`)
-      setTemplates(res.data.templates || [])
-    } catch (error) {
-      console.error('Error fetching templates', error)
-    }
-  }
-
+  // Fetch templates from backend on mount
   useEffect(() => {
+    async function fetchTemplates() {
+      try {
+        const response = await axios.get('/templates/list')
+        setTemplates(response.data.templates)
+      } catch (error) {
+        console.error('Failed to fetch templates:', error)
+      }
+    }
     fetchTemplates()
   }, [])
 
+  // Reset selected block when template changes
   useEffect(() => {
-    if (selectedTemplate) {
-      const template = templates.find((t) => t.filename === selectedTemplate)
-      setBlocks(template ? template.blocks : [])
-      setBlockTexts({})
+    if (selectedTemplate && selectedTemplate.blocks.length > 0) {
+      setSelectedBlock(selectedTemplate.blocks[0])
     } else {
-      setBlocks([])
-      setBlockTexts({})
+      setSelectedBlock(null)
     }
-  }, [selectedTemplate, templates])
+  }, [selectedTemplate])
 
-  const handleBlockTextChange = (blockId: string, value: string) => {
-    setBlockTexts((prev) => ({
-      ...prev,
-      [blockId]: value,
-    }))
+  // Handle new transcription text
+  function handleTranscription(text: string) {
+    setTranscribedText(text)
   }
 
-  const startRecording = async (blockId: string) => {
-    if (recordingBlock) {
-      alert('Please stop the current recording before starting a new one.')
-      return
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      mediaRecorderRef.current = new MediaRecorder(stream)
-      audioChunksRef.current = []
-      mediaRecorderRef.current.ondataavailable = (event) => {
-        audioChunksRef.current.push(event.data)
-      }
-      mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
-        transcribeAudio(audioBlob, blockId)
-      }
-      mediaRecorderRef.current.start()
-      setRecordingBlock(blockId)
-    } catch (error) {
-      console.error('Error starting recording', error)
-      alert('Could not start recording. Please check microphone permissions.')
-    }
-  }
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && recordingBlock) {
-      mediaRecorderRef.current.stop()
-      setRecordingBlock(null)
-    }
-  }
-
-  const handleRecord = (blockId: string) => {
-    if (recordingBlock === blockId) {
-      stopRecording()
-    } else {
-      startRecording(blockId)
-    }
-  }
-
-  const transcribeAudio = async (audioBlob: Blob, blockId: string) => {
-    setLoading(true)
-    try {
-      const token = getToken()
-      const formData = new FormData()
-      formData.append('file', audioBlob, 'recording.webm')
-      formData.append('language', language)
-
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
-
-      const res = await axios.post(`${apiBaseUrl}/transcribe/upload`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      const text = res.data.text || ''
-
-      setBlockTexts((prev) => ({
-        ...prev,
-        [blockId]: (prev[blockId] || '') + ' ' + text,
-      }))
-    } catch (error) {
-      console.error('Transcription error', error)
-      alert('Error during transcription. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDownload = async () => {
-    if (!selectedTemplate) {
-      alert('Please select a template before downloading.')
-      return
-    }
-    try {
-      const token = getToken()
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
-
-      const res = await axios.post(
-        `${apiBaseUrl}/templates/format`,
-        {
-          template_filename: selectedTemplate,
-          blocks_text: blockTexts,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
-
-      const downloadUrl = res.data.download_url
-      if (downloadUrl) {
-        window.open(downloadUrl, '_blank')
+  // Generate the full document text with the transcribed text populated in the selected block
+  function generateDocument() {
+    if (!selectedTemplate) return ''
+    let doc = `Template: ${selectedTemplate.filename}\n\n`
+    selectedTemplate.blocks.forEach((block) => {
+      if (block === selectedBlock) {
+        doc += `${block}:\n${transcribedText}\n\n`
       } else {
-        alert('Download URL not available.')
+        doc += `${block}:\n\n`
       }
-    } catch (error) {
-      console.error('Download error', error)
-      alert('Error generating download. Please try again.')
-    }
+    })
+    return doc
+  }
+
+  // Download the generated document as a text file
+  function downloadDocument() {
+    const doc = generateDocument()
+    const blob = new Blob([doc], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${selectedTemplate?.filename || 'document'}.txt`
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
-    <main className="max-w-4xl mx-auto p-12 space-y-12 bg-white dark:bg-gray-900 rounded-xl shadow-xl transition-colors duration-500">
-      <h1 className="text-7xl font-extrabold text-center text-gray-900 dark:text-gray-100">
-        Voice2Text Dashboard
-      </h1>
-      <section className="space-y-10">
-        <LanguageSelector language={language} setLanguage={setLanguage} />
-        <TemplateSelector
-          templates={templates}
-          selectedTemplate={selectedTemplate}
-          setSelectedTemplate={setSelectedTemplate}
+    <div className="container mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Voice to Text with Templates</h1>
+      <LanguageSelector language={language} setLanguage={setLanguage} />
+      <TemplateSelector
+        templates={templates}
+        selectedTemplate={selectedTemplate}
+        setSelectedTemplate={setSelectedTemplate}
+      />
+      {selectedTemplate && (
+        <BlockSelector
+          blocks={selectedTemplate.blocks}
+          selectedBlock={selectedBlock}
+          setSelectedBlock={setSelectedBlock}
         />
-      </section>
-      <section className="space-y-6">
-        {blocks.map((block) => (
-          <div key={block.id} className="mb-4">
-            <label htmlFor={block.id} className="block mb-1 font-semibold">
-              {block.name}
-            </label>
-            <textarea
-              id={block.id}
-              value={blockTexts[block.id] || ''}
-              onChange={(e) => handleBlockTextChange(block.id, e.target.value)}
-              rows={4}
-              className="w-full border border-gray-300 rounded p-2"
-            />
-            <button
-              onClick={() => handleRecord(block.id)}
-              disabled={loading}
-              className="mt-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition"
-            >
-              {recordingBlock === block.id ? 'Stop Recording' : 'Record'}
-            </button>
-          </div>
-        ))}
-      </section>
+      )}
+      <LiveRecorder language={language} onTranscribe={handleTranscription} />
+      <div className="mt-4">
+        <h2 className="font-semibold">Transcribed Text for Block: {selectedBlock}</h2>
+        <div className="border p-2 min-h-[100px] whitespace-pre-wrap">{transcribedText}</div>
+      </div>
       <button
-        onClick={handleDownload}
-        disabled={loading || !selectedTemplate}
-        className="px-6 py-3 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition"
+        onClick={downloadDocument}
+        disabled={!selectedTemplate}
+        className="mt-4 px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
       >
         Download Document
       </button>
-    </main>
+    </div>
   )
 }
