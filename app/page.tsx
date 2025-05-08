@@ -115,11 +115,11 @@ export default function Dashboard() {
         },
       })
 
-      const rawText = res.data.raw_text || ''
+      const text = res.data.text || ''
 
       setBlockTexts((prev) => ({
         ...prev,
-        [blockId]: (prev[blockId] || '') + ' ' + rawText,
+        [blockId]: (prev[blockId] || '') + ' ' + text,
       }))
     } catch (error) {
       console.error('Transcription error', error)
